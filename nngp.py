@@ -7,7 +7,23 @@ import multiprocessing
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
 
-def GP(D, t, x, K, jitter):
+
+def GP(D, t, x, K, jitter=0.01):
+    """Predicts the outcomes of inputs x using data D and corresponding targets using a Gaussian Process
+    regression. Solves Gaussian Process by explictly inverting the kernel data term.
+
+    Arguments:
+        D {tf.tensor} -- tensor of size (n_data_points, data_dimensions)
+        t {tf.tensor} -- corresponding labels for data of size (n_data_points, number_outputs)
+        x {tf.tensor} -- data points to evaluate the gaussian process at
+        K {function} -- function that implements K(x, xp) i.e. GeneralKernel.K
+
+    Keyword Arguments:
+        jitter {float} -- noise to add to matrix inversion to enhance stability (default: {0.01}))
+
+    Returns:
+        (mu_bar, K_bar) -- tuple of predicted mean and variance as tf.tensors
+    """
     dtype = D.dtype
     sigma_noise = tf.constant(jitter, dtype=dtype)
     K_xD = K(x, D)
@@ -18,6 +34,53 @@ def GP(D, t, x, K, jitter):
     return mu_bar, K_bar
 
 
+def GP_cholesky(D, t, x, K, initial_jitter=1e-8):
+    """[summary]
+
+    Arguments:
+        D {tf.tensor} -- tensor of size (n_data_points, data_dimensions)
+        t {tf.tensor} -- corresponding labels for data of size (n_data_points, number_outputs)
+        x {tf.tensor} -- data points to evaluate the gaussian process at
+        K {function} -- function that implements K(x, xp) i.e. GeneralKernel.K
+
+    Keyword Arguments:
+        initial_jitter {float} -- noise to add to cholesky decomposition to enhance stability
+            this is increased by a factor of 10 up to a maxium of 0.1 if cholesky decomposition is
+            not solvable (default: {1e-8})
+
+    Returns:
+        (mu_bar, K_bar) -- tuple of predicted mean and variance as tf.tensors
+    """
+    dtype = D.dtype
+    jitter = tf.constant(initial_jitter, dtype=dtype)
+    jitter_step = tf.constant(10, dtype=dtype)
+    max_jitter = tf.constant(0.1, dtype=dtype)
+    K_xD = K(x, D)
+    K_DD = K(D, D)
+
+    logger = logging.getLogger(__name__)
+
+    calculated_choleksy = False
+    while not calculated_choleksy:
+        noise_term = tf.square(jitter) * tf.eye(K_DD.shape[0], K_DD.shape[1], dtype=dtype)
+        try:
+            L = tf.linalg.cholesky(K_DD + noise_term)
+            calculated_choleksy = True
+        except tf.errors.InvalidArgumentError:
+            if jitter > max_jitter:
+                logger.info(f'Cholesky decomposition not possible for max jitter of {jitter}')
+                raise (tf.errors.InvalidArgumentError)
+            else:
+                logger.info(f'Increasing jitter from {jitter} to {jitter*jitter_step}')
+                jitter = jitter * jitter_step
+
+    alpha = tf.linalg.triangular_solve(tf.transpose(L), tf.linalg.triangular_solve(L, t), lower=False)
+    mu_bar = tf.matmul(K_xD, alpha)
+    v = tf.linalg.triangular_solve(L, tf.transpose(K_xD))
+    K_bar = K(x, x) - tf.matmul(tf.transpose(v), v)
+    return mu_bar, K_bar
+
+
 # -----------------------------------------------
 # Analytical Kernel for a relu based network
 # -----------------------------------------------
@@ -25,11 +88,27 @@ def GP(D, t, x, K, jitter):
 
 class AnalyticalKernel():
     def __init__(self, L=1, sigma_b=1, sigma_w=1):
+        """Analytical kernel the gaussian process equivalent of a neural network with a relu function
+
+        Keyword Arguments:
+            L {int} -- number of layers (default: {1})
+            sigma_b {int} -- standard deviation of bias (default: {1})
+            sigma_w {int} -- standard deviation of weights (default: {1})
+        """
         self.L = L
         self.sigma_b = sigma_b
         self.sigma_w = sigma_w
 
     def K(self, x, xp):
+        """Calculates covariance matrix for inputs tensors x and xp
+
+        Arguments:
+            x {tf.tensor} -- input tensor of shape (n data points, vector size)
+            xp {tf.tensor} -- input tensor of shape (n data points, vector size)
+
+        Returns:
+            [tf.tensor] -- K(x, xp) calculated between all input points, shape(x.shape[0], xp.shape[0])
+        """
         return _call_analytical_K(x, xp, self.L, self.sigma_b, self.sigma_w)
 
 
@@ -93,6 +172,24 @@ class GeneralKernel():
         save_loc='kernel_grids',
         force_recalculate=False,
     ):
+        """Calculate the kernel for any arbitrary activation function using the algorithm set out in
+        J. Lee Y. Bahri et al. Deep Neural Networks as Gaussian Processes
+
+        Arguments:
+            act {[tf.nn.activation]} -- Activation function
+
+        Keyword Arguments:
+            L {int} -- Number of layers (default: {1})
+            sigma_b {int} --  standard deviation of bias (default: {1})
+            sigma_w {int} -- standard deviation of weights (default: {1})
+            n_g {int} -- number of pre-activations when calculating function approximation (default: {20})
+            n_v {int} -- number of variances when calculating function approximation (default: {20})
+            n_c {int} -- number of correlations when calculating function approximation (default: {20})
+            u_max {int} -- maximum value of pre activation (default: {10})
+            s_max {int} -- maximum value of standard deviations (default: {100})
+            save_loc {str} -- where to save computed grids (default: {'kernel_grids'})
+            force_recalculate {bool} -- recalculate even if a grid already exists (default: {False})
+        """
         self.act = act
         self.L = L
         self.sigma_b = sigma_b
@@ -134,7 +231,6 @@ class GeneralKernel():
         self.logger.info('Loaded grid from file')
 
     def _build_grid_points(self):
-        self.logger.info('Caclulating grid')
         dtype = self.dtype
         # Generate n_g linearly spaced pre-activations
         self.u = tf.convert_to_tensor(np.linspace(-self.u_max, self.u_max, self.n_g), dtype=dtype)
@@ -144,9 +240,19 @@ class GeneralKernel():
         self.c = tf.convert_to_tensor(np.linspace(-self.c_max, self.c_max, self.n_c), dtype=dtype)
 
     def _build_grid(self):
+        self.logger.info('Caclulating grid')
         self.f_ij, self.f_ii = _build_f_grid(self.act, self.u, self.s, self.c)
 
     def K(self, x, xp):
+        """Calculates covariance matrix for inputs tensors x and xp
+
+        Arguments:
+            x {tf.tensor} -- input tensor of shape (n data points, vector size)
+            xp {tf.tensor} -- input tensor of shape (n data points, vector size)
+
+        Returns:
+            [tf.tensor] -- K(x, xp) calculated between all input points, shape(x.shape[0], xp.shape[0])
+        """
         return _call_general_K(x, xp, self.L, self.sigma_b, self.sigma_w, self.s, self.c, self.f_ij, self.f_ii)
 
 
@@ -154,17 +260,16 @@ class GeneralKernel():
 
 
 @tf.function
-def _normalization(x):
-    mean, var = tf.nn.moments(x, axes=1, keepdims=True)
-    x = (x - mean) / tf.sqrt(var)
+def _normalize(x):
+    din = tf.cast(x.shape[1], dtype=x.dtype)
+    x = tf.sqrt(din) * x / tf.linalg.norm(x, axis=1, keepdims=True)
     return x
 
 
 @tf.function
 def _call_general_K(x, xp, L, sigma_b, sigma_w, s, c, f_ij, f_ii):
-
-    #     x = normalization(x)
-    #     xp = normalization(xp)
+    x = _normalize(x)
+    xp = _normalize(xp)
 
     din = x.shape[1]
     sigma_b = tf.constant(sigma_b, dtype=x.dtype)
@@ -205,7 +310,6 @@ def _compute_f_slice(act, u_a, u_b, s_i, c):
 
 @tf.function
 def _build_f_grid(act, u, s, c):
-
     u_a = tf.reshape(u, (-1, 1, 1))
     u_b = tf.transpose(u_a, perm=[1, 0, 2])
 
@@ -234,7 +338,6 @@ def _combinations(x, y):
 
 @tf.function
 def _interpolate_2d(ip, jp, iref, jref, X):
-
     assert ip.shape == jp.shape
 
     ip_flat = tf.reshape(ip, (-1, ))
