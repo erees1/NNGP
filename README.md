@@ -37,6 +37,6 @@ general_kernel = nngp.GeneralKernel(act,
                                     sigma_b=sigma_b,
                                     sigma_w=sigma_w)
 
-mu_bar, K_bar = nngp.GP_cholesky(X_train_flat[:1000], Y_train[:1000], X_test[:1000], K)
+mu_bar, K_bar = nngp.GP_cholesky(X_train_flat[:1000], Y_train_reg[:1000], X_test_flat[:1000], K)
 
 ```
