@@ -11,6 +11,8 @@ The following snippet shows how to obtain a predicted mean and variance of the f
 Note preprocessing is to ensure outputs are zero-mean regression targets.
 
 ```python
+import nngp
+
 def prep_data(X, Y, dtype=tf.float64):
     X_flat = tf.convert_to_tensor(X.reshape(-1, 28*28)/255, dtype=dtype)
     Y_cat = keras.utils.to_categorical(Y)
