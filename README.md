@@ -15,7 +15,7 @@ The following snippet shows how to obtain a predicted mean and variance of the f
 Note preprocessing is to ensure outputs are zero-mean regression targets.
 
 ```python
-import nngp
+from nngp import nngp
 
 def prep_data(X, Y, dtype=tf.float64):
     X_flat = tf.convert_to_tensor(X.reshape(-1, 28*28)/255, dtype=dtype)
@@ -32,6 +32,9 @@ X_test_flat, Y_test_reg = prep_data(X_test, Y_test)
 
 
 act = tf.nn.tanh
+sigma_b = np.sqrt(0.1)
+sigma_w = np.sqrt(1.6)
+
 
 general_kernel = nngp.GeneralKernel(act,
                                     L=n_layers,
