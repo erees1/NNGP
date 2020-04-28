@@ -6,7 +6,7 @@ To see a recreation of some of the results from the paper see the notebook [here
 
 ## Project Structure
 
-There is one main module: [`nngp.py`](./nngp.py) which contains the code for creating kernels and running Gaussian process regression. The only other module is [`neural_net.py`](./nerual_net.py) which has the code to build the nerual network that approximates to the Gaussian process.
+There is one main module: [`nngp.py`](./nngp.py) which contains the code for creating kernels and running Gaussian process regression. The only other module is [`neural_net.py`](./neural_net.py) which has the code to build the nerual network that approximates to the Gaussian process.
 
 ## How to use
 
