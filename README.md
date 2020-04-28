@@ -4,6 +4,10 @@ Implementation of *"[Deep Neural Networks as Gaussian Processes](https://arxiv.o
 
 To see a recreation of some of the results from the paper see the notebook [here](https://nbviewer.jupyter.org/github/erees1/NNGP/blob/master/nngp_experiments.ipynb). Note this uses nbviewer as I used Bokeh for my plots which do not render in Github.
 
+## Project Structure
+
+There is one main module: [`nngp.py`](./nngp.py) which contains the code for creating kernels and running Gaussian process regression. The only other module is [`neural_net.py`](./nerual_net.py) which has the code to build the nerual network that approximates to the Gaussian process.
+
 ## How to use
 
 The following snippet shows how to obtain a predicted mean and variance of the first 1000 items of MNIST using a gaussian process with a specified kernel. The gaussian process is implemented as a regression using the cholesky decompostion, see *"[Gaussian Processes for Machine Learning](http://www.gaussianprocess.org/gpml/chapters/RW.pdf)"* by C. E. Rasmussen & C. K. I. Williams,  pg.19 for details.
