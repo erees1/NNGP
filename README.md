@@ -10,7 +10,7 @@ There is one main module: [`nngp.py`](./nngp.py) which contains the code for cre
 
 ## How to use
 
-The following snippet shows how to obtain a predicted mean and variance of the first 1000 items of MNIST using a gaussian process with a specified kernel. The gaussian process is implemented as a regression using the cholesky decompostion, see *"[Gaussian Processes for Machine Learning](http://www.gaussianprocess.org/gpml/chapters/RW.pdf)"* by C. E. Rasmussen & C. K. I. Williams,  pg.19 for details.
+The following snippet shows how to obtain a predicted mean and variance of the first 100 items of MNIST using a gaussian process with a specified kernel. The gaussian process is implemented as a regression using the cholesky decompostion, see *"[Gaussian Processes for Machine Learning](http://www.gaussianprocess.org/gpml/chapters/RW.pdf)"* by C. E. Rasmussen & C. K. I. Williams,  pg.19 for details.
 
 Note preprocessing is to ensure outputs are zero-mean regression targets.
 
