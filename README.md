@@ -14,10 +14,13 @@ The following snippet shows how to obtain a predicted mean and variance of the f
 
 Note preprocessing is to ensure outputs are zero-mean regression targets.
 
+When calling the `GeneralKenrel()` it checks in the `save_loc` folder to see if a pre computed grid is available - in this repo I have saved the results for `relu` and `tanh` with  `n_g=401`, `n_v=400`, `n_c=400`, `u_max=10` and `s_max=100`.
+
 ```python
-from nngp import nngp
+from NNGP import nngp
 import tensorflow as tf
 from tensorflow import keras
+import numpy as np
 
 def prep_data(X, Y, dtype=tf.float64):
     X_flat = tf.convert_to_tensor(X.reshape(-1, 28*28)/255, dtype=dtype)
@@ -33,9 +36,11 @@ X_train_flat, Y_train_reg = prep_data(X_train, Y_train)
 X_test_flat, Y_test_reg = prep_data(X_test, Y_test)
 
 
-act = tf.nn.tanh
+act = tf.nn.relu
 sigma_b = 0.1**0.5
 sigma_w = 1.6**0.5
+n_layers = 3
+n_data = 100
 
 
 general_kernel = nngp.GeneralKernel(act,
@@ -46,8 +51,13 @@ general_kernel = nngp.GeneralKernel(act,
                                     u_max=10,
                                     s_max=100,
                                     sigma_b=sigma_b,
-                                    sigma_w=sigma_w)
+                                    sigma_w=sigma_w,
+                                    save_loc='NNGP/kernel_grids')
 
-mu_bar, K_bar = nngp.GP_cholesky(X_train_flat[:1000], Y_train_reg[:1000], X_test_flat[:1000], K)
+mu_bar, K_bar = nngp.GP_cholesky(X_train_flat[:n_data], Y_train_reg[:n_data], X_test_flat[:n_data], general_kernel.K)
+
+predictions = tf.argmax(mu_bar, axis=-1)
+acc = np.equal(predictions.numpy(), Y_test[:n_data]).sum()/len(Y_test[:n_data])
+print(acc)
 
 ```

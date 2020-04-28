@@ -317,7 +317,7 @@ def _build_f_grid(act, u, s, c):
     def _fi(s_i):
         return _compute_f_slice(act, u_a, u_b, s_i, c)
 
-    f_ij = tf.map_fn(_fi, s, parallel_iterations=multiprocessing.cpu_count)
+    f_ij = tf.map_fn(_fi, s, parallel_iterations=multiprocessing.cpu_count())
 
     # compute f_ii seperatley as f_ij divides by 0 when c = 1
     log_weights_ii_unnorm = -0.5 * (u_a**2 / tf.reshape(s, [1, 1, -1]))
