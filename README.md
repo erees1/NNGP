@@ -14,7 +14,7 @@ The following snippet shows how to obtain a predicted mean and variance of the f
 
 Note preprocessing is to ensure outputs are zero-mean regression targets.
 
-When calling the `GeneralKenrel()` it checks in the `save_loc` folder to see if a pre computed grid is available - in this repo I have saved the results for `relu` and `tanh` with  `n_g=401`, `n_v=400`, `n_c=400`, `u_max=10` and `s_max=100`.
+When instantiating a `GeneralKernel()` it checks in the `save_loc` folder to see if a pre computed grid is available - in this repo I have saved the results for `relu` and `tanh` with  `n_g=401`, `n_v=400`, `n_c=400`, `u_max=10` and `s_max=100`.
 
 ```python
 from NNGP import nngp
