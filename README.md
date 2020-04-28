@@ -16,6 +16,8 @@ Note preprocessing is to ensure outputs are zero-mean regression targets.
 
 ```python
 from nngp import nngp
+import tensorflow as tf
+from tensorflow import keras
 
 def prep_data(X, Y, dtype=tf.float64):
     X_flat = tf.convert_to_tensor(X.reshape(-1, 28*28)/255, dtype=dtype)
@@ -32,8 +34,8 @@ X_test_flat, Y_test_reg = prep_data(X_test, Y_test)
 
 
 act = tf.nn.tanh
-sigma_b = np.sqrt(0.1)
-sigma_w = np.sqrt(1.6)
+sigma_b = 0.1**0.5
+sigma_w = 1.6**0.5
 
 
 general_kernel = nngp.GeneralKernel(act,
